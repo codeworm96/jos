@@ -291,6 +291,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 			char *dst = va_arg(ap, char *);
 			if (dst) {
 				if (*(int *)putdat > 127) {
+					*dst = -1;
 					puts(putch, putdat, overflow_error);
 				}
 				else {
