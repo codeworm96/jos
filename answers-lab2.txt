@@ -1,0 +1,21 @@
+boot_alloc() is a function used to allocate space when setting up the
+memory system. It uses current nextfree as result, and then it will move
+the nextfree backward with n bytes and round up it to make the nextfree
+is kept aligned to a multiple of PGSIZE. If the nextfree goes beyond the
+upper bound of the available memory, the function will panic. (Only 4MB
+memory is available when using the entry page table)
+
+The array of Page structures should be created with boot_alloc() in the
+mem_init() function. Then the kernel use page_init() to initialize the
+page free list. In base memory, only pages at
+[PGSIZE, npages_basemen * PGSIZE) are free. In the extended memory, we can
+use boot_alloc(0) to get the begining of the free space.
+
+In page_alloc(), we first check if there is any page in the free list.
+If so, the first page in the list will be allocated. If the ALLOC_ZERO
+flag is set, the page will be filled with 0.
+
+page_free() will insert the given page into the page free list at the
+head.
+
+
