@@ -1,3 +1,7 @@
+// The brief answers to the lab's questions
+// I also discussed My lab2 design here
+// So there is no need for a stand-alone document file
+
 ## Part 1: Physical Page Management
 
 Exercise 1:
