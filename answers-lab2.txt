@@ -1,5 +1,6 @@
 ## Part 1: Physical Page Management
 
+Exercise 1:
 boot_alloc() is a function used to allocate space when setting up the
 memory system. It uses current nextfree as result, and then it will move
 the nextfree backward with n bytes and round up it to make the nextfree
@@ -24,6 +25,7 @@ head.
 
 Question 1: uintptr_t. All pointers in C are virtual addresses.
 
+Exercise 4:
 pgdir_walk() walks the two-level page table structure to find the
 PTE of that linear address, and creates new page if necessary.
 Its logic is the same as that of the MMU.
@@ -52,7 +54,41 @@ Exercise 5: We must use the functions completed in the Part 2 to fill
 the page directory according to the memory layout in mem_init()
 
 Question 2:
-TODO
+
+Entry     Base Virtual Address     Points to (logically)
+1023      0xffc00000               Page table for top 4MB of phys memory
+...
+960       0xf0000000               Page table for bottom 4MB of phys memory
+959       0xefc00000               Not mapped
+958       0xef800000               The kernel stack, some pages are guard page
+957       0xef400000               The page directory itself
+956       0xef000000               The pages array
+955       0xeec00000               Not mapped
+...
+0         0x00000000               Not mapped
+
+Question 3:
+The MMU will check the permission of a page when doing address
+translation.
+
+Question 4:
+256MB. Only 256MB is reversed for remapping the physical memory
+in the memory layout design.
+
+Question 5:
+Page structures: 65536 * sizeof(struct Page)
+# suppose the page table is full
+(2-level) page table: 1024 * 4K = 4M
+page directory: 4K
+
+Question 6:
+mov	$relocated, %eax
+jmp	*%eax   # <-
+
+Because the same physical pages are mapped both at the high position and
+the low position in the initial page table. Because in the JOS design,
+the kernel should be place at that position in the kernel's memory space,
+so a transition is needed.
 
 Exercise 6: Complete boot_map_region_large(). The logic is similar with
 boot_map_region(), but uses 4MB page instead of 4KB page. Then call it
@@ -60,7 +96,28 @@ to setup KERNBASE mapping. Don't forget to enable page size extension
 in cr4 before loading cr3.
 
 Challenge 1:
-TODO
+I added the showmappings command.
+Note: This command can not handle the 0xef400000 PDE, because it is a
+weird PDE that points to the page directory itself.
+
+K> showmappings 0xef000000 0xef008000
+0xef000000 => 0x0011b000 U
+0xef001000 => 0x0011c000 U
+0xef002000 => 0x0011d000 U
+0xef003000 => 0x0011e000 U
+0xef004000 => 0x0011f000 U
+0xef005000 => 0x00120000 U
+0xef006000 => 0x00121000 U
+0xef007000 => 0x00122000 U
+0xef008000 => 0x00123000 U
+
+I added the chmapping command to change the permission of a mapping.
+
+K> showmappings 0xef000000 0xef000000
+0xef000000 => 0x0011b000 U
+K> chmapping +W 0xef000000
+K> showmappings 0xef000000 0xef000000
+0xef000000 => 0x0011b000 W U
 
 I added the memdump command which can dump the contents of a range of
 memory given either a virtual or physical address range.
