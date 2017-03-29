@@ -1,3 +1,5 @@
+## Part 1: Physical Page Management
+
 boot_alloc() is a function used to allocate space when setting up the
 memory system. It uses current nextfree as result, and then it will move
 the nextfree backward with n bytes and round up it to make the nextfree
@@ -18,4 +20,51 @@ flag is set, the page will be filled with 0.
 page_free() will insert the given page into the page free list at the
 head.
 
+## Part 2: Virtual Memory
+
+Question 1: uintptr_t. All pointers in C are virtual addresses.
+
+pgdir_walk() walks the two-level page table structure to find the
+PTE of that linear address, and creates new page if necessary.
+Its logic is the same as that of the MMU.
+
+boot_map_region() uses pgdir_walk() to create a series of PTE to
+map [va, va+size) to [pa, pa+size)
+
+page_lookup() also uses pgdir_walk() to find the page mapped at
+virtual address 'va'.
+
+page_remove() uses page_lookup() to find the page at that virtual
+address. If such a page exists, it will use page_decref() to decrement
+its ref count and free it when necessary and set corresponding PTE to
+0. TLB will be invalidated, too.
+
+page_insert() uses pgdir_walk() to find the corresponding PTE and
+creates it if necessary. (if pgdir_walk() cannot allocate one, just
+return -E_NO_MEM) We use page_remove() to remove the mapped page, if
+there is already a page mapped at 'va'. The corner-case is handled
+by increase the page's ref count before we call page_remove().
+Finally, we sets the PTE.
+
+## Part 3: Kernel Address Space
+
+Exercise 5: We must use the functions completed in the Part 2 to fill
+the page directory according to the memory layout in mem_init()
+
+Question 2:
+TODO
+
+Exercise 6: Complete boot_map_region_large(). The logic is similar with
+boot_map_region(), but uses 4MB page instead of 4KB page. Then call it
+to setup KERNBASE mapping. Don't forget to enable page size extension
+in cr4 before loading cr3.
+
+Challenge 1:
+TODO
+
+Challenge 2:
+According to the document, there are 2 bit for color index. So the number
+of colors is 4. In alloc_page_with_color(), just travel through the linked
+list until we find the physical page with specific color, then choose that
+page to return. I write the check_page_color() function to test it.
 
