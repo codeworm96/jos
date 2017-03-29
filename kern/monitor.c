@@ -25,6 +25,7 @@ static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "backtrace", "Display the backtrace", mon_backtrace },
+	{ "time", "Display used cycles for the command", mon_time }
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -79,20 +80,30 @@ start_overflow(void)
 	// to invoke the do_overflow function and
 	// the procedure must return normally.
 
-    // And you must use the "cprintf" function with %n specifier
-    // you augmented in the "Exercise 9" to do this job.
+	// And you must use the "cprintf" function with %n specifier
+	// you augmented in the "Exercise 9" to do this job.
 
-    // hint: You can use the read_pretaddr function to retrieve 
-    //       the pointer to the function call return address;
+	// hint: You can use the read_pretaddr function to retrieve 
+	//       the pointer to the function call return address;
 
-    char str[256] = {};
-    int nstr = 0;
-    char *pret_addr;
-
-	// Your code here.
-    
-
-
+	char str[256] = {};
+	int nstr = 0;
+	int i;
+	char *pret_addr = (char *)read_pretaddr();
+	int retaddr = *(uint32_t *)pret_addr;
+	int target = (int)do_overflow;
+	for (i = 0; i < 4; ++i) {
+		memset(str, '!', 256);
+		str[target & 0xff] = 0;
+		cprintf("%s%n", str, pret_addr + i);
+		target = target >> 8;
+	}
+	for (i = 4; i < 8; ++i) {
+		memset(str, '!', 256);
+		str[retaddr & 0xff] = 0;
+		cprintf("%s%n", str, pret_addr + i);
+		retaddr = retaddr >> 8;
+	}
 }
 
 void
@@ -120,9 +131,43 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		cprintf("+%d\n", eip - (uint32_t)info.eip_fn_addr);
 		cur = *(uint32_t *)cur;
 	}
+	overflow_me();
+	cprintf("Backtrace success\n");
 	return 0;
 }
 
+static unsigned long long read_time_stamp_counter()
+{
+	unsigned long long tick;
+	__asm__ __volatile__("rdtsc":"=A"(tick));
+	return tick;
+}
+
+int
+mon_time(int argc, char **argv, struct Trapframe *tf)
+{
+	int i, start, end;
+	if (argc < 2)
+		return 0;
+	int new_argc = argc - 1;
+	char **new_argv = argv + 1;
+	// Lookup and invoke the command
+	for (i = 0; i < NCOMMANDS; i++) {
+		if (strcmp(new_argv[0], commands[i].name) == 0) {
+			start = read_time_stamp_counter();
+			commands[i].func(new_argc, new_argv, tf);
+			end = read_time_stamp_counter();
+			break;
+		}
+	}
+	if (i < NCOMMANDS) {
+		cprintf("%s cycles: %ld\n", new_argv[0], end - start);
+	}
+	else {
+		cprintf("Unknown command '%s'\n", new_argv[0]);
+	}
+	return 0;
+}
 
 
 /***** Kernel monitor command interpreter *****/
