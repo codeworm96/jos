@@ -62,6 +62,18 @@ in cr4 before loading cr3.
 Challenge 1:
 TODO
 
+I added the memdump command which can dump the contents of a range of
+memory given either a virtual or physical address range.
+
+K> memdump -p 0x100000 0x100010
+0x100000: 02 b0 ad 1b 00 00 00 00
+0x100008: fe 4f 52 e4 66 c7 05 72
+0x100010: 04
+K> memdump -v 0xf0100000 0xf0100010
+0xf0100000: 02 b0 ad 1b 00 00 00 00
+0xf0100008: fe 4f 52 e4 66 c7 05 72
+0xf0100010: 04
+
 Challenge 2:
 According to the document, there are 2 bit for color index. So the number
 of colors is 4. In alloc_page_with_color(), just travel through the linked

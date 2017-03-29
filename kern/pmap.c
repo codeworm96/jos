@@ -415,9 +415,17 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
                 panic("pgdir_walk: empty page directory\n");
         }
 
-        pde_t pde = pgdir[PDX(va)];
+        pde_t *pde = pgdir + PDX(va);
         physaddr_t pte_addr;
-        if ((pde & PTE_P) == 0) {
+        if (*pde & PTE_P) {
+                if (*pde & PTE_PS) {
+                        return pde;
+                }
+                else {
+                        pte_addr = PTE_ADDR(*pde);
+                }
+        }
+        else {
                 if (!create) {
                         return NULL;
                 }
@@ -428,8 +436,6 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
                 p->pp_ref++;
                 pte_addr = page2pa(p);
                 pgdir[PDX(va)] = pte_addr | PTE_U | PTE_P | PTE_W;
-        } else {
-                pte_addr = PTE_ADDR(pde);
         }
 
         pte_t * pte = KADDR(pte_addr);
