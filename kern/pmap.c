@@ -159,10 +159,9 @@ mem_init(void)
 	// Your code goes here:
   pages = (struct Page *)boot_alloc(npages * sizeof(struct Page));
 
-
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
-	// LAB 3: Your code here.
+  envs = (struct Env *)boot_alloc(NENV * sizeof(struct Env));
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -199,7 +198,10 @@ mem_init(void)
 	// Permissions:
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
-	// LAB 3: Your code here.
+  boot_map_region(kern_pgdir, UENVS,
+                  ROUNDUP(NENV * sizeof(struct Env), PGSIZE),
+                  PADDR(envs), PTE_U);
+
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -358,8 +360,53 @@ page_alloc(int alloc_flags)
 struct Page *
 page_alloc_npages(int alloc_flags, int n)
 {
-	// Fill this function
-	return NULL;
+        if (n <= 0) {
+                return NULL;
+        }
+
+        struct Page head;
+        struct Page *cur = page_free_list;
+        head.pp_link = page_free_list;
+        int len = 0;
+        struct Page *begin = &head;
+        if (cur) {
+                len = 1;
+                while (cur->pp_link) {
+                        if (len >= n) {
+                                break;
+                        }
+                        if (page2pa(cur) - page2pa(cur->pp_link) == PGSIZE) {
+                                ++len;
+                        }
+                        else {
+                                begin = cur;
+                                len = 1;
+                        }
+                        cur = cur->pp_link;
+                }
+        }
+
+        if (len >= n) {
+                struct Page *res = NULL;
+                int i;
+                for (i = 0; i < n; ++i) {
+                        struct Page *p = begin->pp_link;
+                        if (p->pp_ref) {
+                                panic("page_alloc_npages: allocated a page in use\n");
+                        }
+
+                        if (alloc_flags & ALLOC_ZERO) {
+                                memset(page2kva(p), 0, PGSIZE);
+                        }
+                        begin->pp_link = p->pp_link;
+                        p->pp_link = res;
+                        res = p;
+                }
+                page_free_list = head.pp_link;
+                return res;
+        } else {
+                return NULL;
+        }
 }
 
 // Return n continuous pages to chunk list. Do the following things:
@@ -370,8 +417,18 @@ page_alloc_npages(int alloc_flags, int n)
 int
 page_free_npages(struct Page *pp, int n)
 {
-	// Fill this function
-	return -1;
+        struct Page *cur;
+        if(check_continuous(pp, n)) {
+                while(pp) {
+                        cur = pp;
+                        pp = pp->pp_link;
+                        page_free(cur);
+                }
+                return 0;
+        }
+        else {
+                return -1;
+        }
 }
 
 //
@@ -424,8 +481,43 @@ page_free(struct Page *pp)
         if (pp->pp_ref) {
                 panic("page_free: free a page in use!\n");
         }
-        pp->pp_link = page_free_list;
-        page_free_list = pp;
+        struct Page head;
+        struct Page *cur = &head;
+        cur->pp_link = page_free_list;
+        while (cur->pp_link && page2pa(cur->pp_link) > page2pa(pp)) {
+                cur = cur->pp_link;
+        }
+        pp->pp_link = cur->pp_link;
+        cur->pp_link = pp;
+        page_free_list = head.pp_link;
+}
+
+struct Page *
+alloc_page_with_addr(physaddr_t addr)
+{
+        struct Page * last = NULL;
+        struct Page * cur = page_free_list;
+        while (cur != NULL && page2pa(cur) > addr) {
+                last = cur;
+                cur = cur->pp_link;
+        }
+        if (cur && page2pa(cur) == addr) {
+                if (last) {
+                        last->pp_link = cur->pp_link;
+                }
+                else {
+                        page_free_list = cur->pp_link;
+                }
+                cur->pp_link = NULL;
+
+                if (cur->pp_ref) {
+                        panic("page_alloc: allocated a page in use\n");
+                }
+                memset(page2kva(cur), 0, PGSIZE);
+                return cur;
+        } else {
+                return NULL;
+        }
 }
 
 //
@@ -436,8 +528,56 @@ page_free(struct Page *pp)
 struct Page *
 page_realloc_npages(struct Page *pp, int old_n, int new_n)
 {
-	// Fill this function
-	return NULL;
+        if (new_n <= old_n) {
+                struct Page head;
+                head.pp_link = pp;
+                struct Page *cur = &head;
+                int i;
+                for (i = 0; i < new_n; ++i) {
+                        cur = cur->pp_link;
+                }
+                page_free_npages(cur->pp_link, old_n - new_n);
+                cur->pp_link = NULL;
+                return head.pp_link;
+        } else {
+                if (old_n == 0) {
+                        return page_alloc_npages(ALLOC_ZERO, new_n);
+                }
+                struct Page *cur = pp;
+                while(cur->pp_link) {
+                        cur = cur->pp_link;
+                }
+                int i;
+                for (i = old_n; i < new_n; ++i) {
+                        struct Page *p;
+                        p = alloc_page_with_addr(page2pa(cur) + PGSIZE);
+                        if (p) {
+                                cur->pp_link = p;
+                                cur = p;
+                        }
+                        else {
+                                break;
+                        }
+                }
+                if (i < new_n) {
+                        struct Page *res = page_alloc_npages(ALLOC_ZERO, new_n);
+                        struct Page *new_p = res;
+                        struct Page *old_p = pp;
+                        int j;
+                        for (j = 0; j < old_n; ++j) {
+                                memmove(page2kva(new_p), page2kva(old_p), PGSIZE);
+                                new_p = new_p->pp_link;
+                                old_p = old_p->pp_link;
+                        }
+                        while (pp) {
+                                struct Page *p = pp;
+                                pp = pp->pp_link;
+                                page_free(p);
+                        }
+                        pp = res;
+                }
+                return pp;
+        }
 }
 
 //
