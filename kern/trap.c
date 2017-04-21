@@ -64,7 +64,42 @@ trap_init(void)
 {
 	extern struct Segdesc gdt[];
 
-	// LAB 3: Your code here.
+  extern void divide_handler();
+  SETGATE(idt[T_DIVIDE], 1, GD_KT, divide_handler, 0);
+  extern void debug_handler();
+  SETGATE(idt[T_DEBUG], 1, GD_KT, debug_handler, 0);
+  extern void nmi_handler();
+  SETGATE(idt[T_NMI], 0, GD_KT, nmi_handler, 0);
+  extern void brkpt_handler();
+  SETGATE(idt[T_BRKPT], 1, GD_KT, brkpt_handler, 3);
+  extern void oflow_handler();
+  SETGATE(idt[T_OFLOW], 1, GD_KT, oflow_handler, 0);
+  extern void bound_handler();
+  SETGATE(idt[T_BOUND], 1, GD_KT, bound_handler, 0);
+  extern void illop_handler();
+  SETGATE(idt[T_ILLOP], 1, GD_KT, illop_handler, 0);
+  extern void device_handler();
+  SETGATE(idt[T_DEVICE], 1, GD_KT, device_handler, 0);
+  extern void dblflt_handler();
+  SETGATE(idt[T_DBLFLT], 1, GD_KT, dblflt_handler, 0);
+  extern void tss_handler();
+  SETGATE(idt[T_TSS], 1, GD_KT, tss_handler, 0);
+  extern void segnp_handler();
+  SETGATE(idt[T_SEGNP], 1, GD_KT, segnp_handler, 0);
+  extern void stack_handler();
+  SETGATE(idt[T_STACK], 1, GD_KT, stack_handler, 0);
+  extern void gpflt_handler();
+  SETGATE(idt[T_GPFLT], 1, GD_KT, gpflt_handler, 0);
+  extern void pgflt_handler();
+  SETGATE(idt[T_PGFLT], 1, GD_KT, pgflt_handler, 0);
+  extern void fperr_handler();
+  SETGATE(idt[T_FPERR], 1, GD_KT, fperr_handler, 0);
+  extern void align_handler();
+  SETGATE(idt[T_ALIGN], 1, GD_KT, align_handler, 0);
+  extern void mchk_handler();
+  SETGATE(idt[T_MCHK], 1, GD_KT, mchk_handler, 0);
+  extern void simderr_handler();
+  SETGATE(idt[T_SIMDERR], 1, GD_KT, simderr_handler, 0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -74,6 +109,12 @@ trap_init(void)
 void
 trap_init_percpu(void)
 {
+  // set MSR for sysenter
+  extern void sysenter_handler();
+  wrmsr(0x174, GD_KT, 0);		/* SYSENTER_CS_MSR */
+  wrmsr(0x175, KSTACKTOP, 0);	/* SYSENTER_ESP_MSR */
+  wrmsr(0x176, (uint32_t)sysenter_handler, 0);			/* SYSENTER_EIP_MSR */
+
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
 	ts.ts_esp0 = KSTACKTOP;
@@ -142,7 +183,15 @@ static void
 trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
-	// LAB 3: Your code here.
+        switch(tf->tf_trapno) {
+        case T_PGFLT:
+                page_fault_handler(tf);
+                return;
+        case T_BRKPT:
+        case T_DEBUG:
+                monitor(tf);
+                return;
+        }
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -201,8 +250,9 @@ page_fault_handler(struct Trapframe *tf)
 	fault_va = rcr2();
 
 	// Handle kernel-mode page faults.
-
-	// LAB 3: Your code here.
+  if ((tf->tf_cs & 0x3) == 0) {
+          panic("page fault happens in kernel mode");
+  }
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.

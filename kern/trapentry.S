@@ -45,20 +45,56 @@
 
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
- */
+  */
+TRAPHANDLER_NOEC(divide_handler, T_DIVIDE)
+TRAPHANDLER_NOEC(debug_handler, T_DEBUG)
+TRAPHANDLER_NOEC(nmi_handler, T_NMI)
+TRAPHANDLER_NOEC(brkpt_handler, T_BRKPT)
+TRAPHANDLER_NOEC(oflow_handler, T_OFLOW)
+TRAPHANDLER_NOEC(bound_handler, T_BOUND)
+TRAPHANDLER_NOEC(illop_handler, T_ILLOP)
+TRAPHANDLER_NOEC(device_handler, T_DEVICE)
+TRAPHANDLER(dblflt_handler, T_DBLFLT)
 
+TRAPHANDLER(tss_handler, T_TSS)
+TRAPHANDLER(segnp_handler, T_SEGNP)
+TRAPHANDLER(stack_handler, T_STACK)
+TRAPHANDLER(gpflt_handler, T_GPFLT)
+TRAPHANDLER(pgflt_handler, T_PGFLT)
+TRAPHANDLER_NOEC(fperr_handler, T_FPERR)
+TRAPHANDLER_NOEC(align_handler, T_ALIGN)
+TRAPHANDLER_NOEC(mchk_handler, T_MCHK)
+TRAPHANDLER_NOEC(simderr_handler, T_SIMDERR)
 
 
 .globl sysenter_handler;
 .type sysenter_handler, @function;
 .align 2;
 sysenter_handler:
-/*
- * Lab 3: Your code here for system call handling
- */
+  pushl $0 // arg5, not supported by sysenter
+  pushl %edi
+  pushl %ebx
+  pushl %ecx
+  pushl %edx
+  pushl %eax
+  call syscall
+  movl %ebp, %ecx
+  movl %esi, %edx
+  sysexit
 
 
 /*
  * Lab 3: Your code here for _alltraps
  */
-
+.globl _alltraps;
+.type _alltraps, @function;
+.align 2;
+_alltraps:
+  pushl %ds
+  pushl %es
+  movl $GD_KD, %eax
+  movw %ax, %ds
+  movw %ax, %es
+  pushal
+  pushl %esp
+  call trap

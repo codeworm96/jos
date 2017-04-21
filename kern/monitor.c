@@ -31,7 +31,10 @@ static struct Command commands[] = {
 	{ "time", "Display used cycles for the command", mon_time },
   { "memdump", "Dump the contents of a range of memory", mon_memdump },
   { "showmappings", "Display hte physical page mappings and corresponding permission bits", mon_showmappings },
-  { "chmapping", "Change the permission bits of a mapping", mon_chmapping }
+  { "chmapping", "Change the permission bits of a mapping", mon_chmapping },
+  { "c", "Continue execution from the current location", mon_c },
+  { "si", "Execute the code instruction by instruction", mon_si },
+  { "x", "Dispaly the memory", mon_x }
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -344,6 +347,41 @@ int mon_chmapping(int argc, char **argv, struct Trapframe *tf)
                         *pte = *pte & ~perm;
                 }
         }
+        return 0;
+}
+
+int mon_c(int argc, char **argv, struct Trapframe *tf)
+{
+        tf->tf_eflags &= ~FL_TF;
+        return -1;
+}
+
+int mon_si(int argc, char **argv, struct Trapframe *tf)
+{
+        int i;
+        tf->tf_eflags |= FL_TF;
+        uint32_t eip = tf->tf_eip;
+        cprintf("tf_eip=%08x\n", eip);
+        struct Eipdebuginfo info;
+        debuginfo_eip(eip, &info);
+        cprintf("%s:%d: ", info.eip_file, info.eip_line);
+        for (i = 0; i < info.eip_fn_namelen; ++i) {
+                cprintf("%c", info.eip_fn_name[i]);
+        }
+        cprintf("+%d\n", eip - (uint32_t)info.eip_fn_addr);
+        return -1;
+}
+
+int mon_x(int argc, char **argv, struct Trapframe *tf)
+{
+        int res, addr;
+        if (argc != 2) {
+                cprintf("Usage: <addr>\n");
+                return 0;
+        }
+        addr = hex2int(argv[1]);
+        res = *(uint32_t *)addr;
+        cprintf("%u\n", res);
         return 0;
 }
 
