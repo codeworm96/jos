@@ -107,6 +107,8 @@ trap_init(void)
   SETGATE(idt[T_MCHK], 1, GD_KT, mchk_handler, 0);
   extern void simderr_handler();
   SETGATE(idt[T_SIMDERR], 1, GD_KT, simderr_handler, 0);
+  extern void syscall_handler();
+  SETGATE(idt[T_SYSCALL], 1, GD_KT, syscall_handler, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -139,25 +141,27 @@ trap_init_percpu(void)
 	//
 	// LAB 4: Your code here:
 
-  // set MSR for sysenter
-  extern void sysenter_handler();
-  wrmsr(0x174, GD_KT, 0);		/* SYSENTER_CS_MSR */
-  wrmsr(0x175, KSTACKTOP, 0);	/* SYSENTER_ESP_MSR */
-  wrmsr(0x176, (uint32_t)sysenter_handler, 0);			/* SYSENTER_EIP_MSR */
+  uint32_t i = thiscpu->cpu_id;
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
-	ts.ts_esp0 = KSTACKTOP;
-	ts.ts_ss0 = GD_KD;
+	thiscpu->cpu_ts.ts_esp0 = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+	thiscpu->cpu_ts.ts_ss0 = GD_KD;
+
+  // set MSR for sysenter
+  extern void sysenter_handler();
+  wrmsr(0x174, GD_KT, 0);		/* SYSENTER_CS_MSR */
+  wrmsr(0x175, thiscpu->cpu_ts.ts_esp0, 0);	/* SYSENTER_ESP_MSR */
+  wrmsr(0x176, (uint32_t)sysenter_handler, 0);			/* SYSENTER_EIP_MSR */
 
 	// Initialize the TSS slot of the gdt.
-	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
+	gdt[(GD_TSS0 >> 3) + i] = SEG16(STS_T32A, (uint32_t) (&thiscpu->cpu_ts),
 					sizeof(struct Taskstate), 0);
-	gdt[GD_TSS0 >> 3].sd_s = 0;
+	gdt[(GD_TSS0 >> 3) + i].sd_s = 0;
 
 	// Load the TSS selector (like other segment selectors, the
 	// bottom three bits are special; we leave them 0)
-	ltr(GD_TSS0);
+	ltr(GD_TSS0 + (i << 3));
 
 	// Load the IDT
 	lidt(&idt_pd);
@@ -212,19 +216,22 @@ print_regs(struct PushRegs *regs)
 static void
 trap_dispatch(struct Trapframe *tf)
 {
-	// Handle processor exceptions.
-        switch(tf->tf_trapno) {
-        case T_PGFLT:
-                page_fault_handler(tf);
-                return;
-        case T_BRKPT:
-        case T_DEBUG:
-                monitor(tf);
-                return;
-        }
+  // Handle processor exceptions.
+  switch(tf->tf_trapno) {
+  case T_PGFLT:
+    page_fault_handler(tf);
+    return;
+  case T_BRKPT:
+  case T_DEBUG:
+    monitor(tf);
+    return;
+  case T_SYSCALL:
+    system_call_handler(tf);
+    return;
+  }
 
-	// Handle spurious interrupts
-	// The hardware sometimes raises these because of noise on the
+  // Handle spurious interrupts
+  // The hardware sometimes raises these because of noise on the
 	// IRQ line or other reasons. We don't care.
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_SPURIOUS) {
 		cprintf("Spurious interrupt on irq 7\n");
@@ -267,7 +274,7 @@ trap(struct Trapframe *tf)
 		// Trapped from user mode.
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
-		// LAB 4: Your code here.
+    lock_kernel();
 		assert(curenv);
 
 		// Garbage collect if current enviroment is a zombie
@@ -346,7 +353,24 @@ page_fault_handler(struct Trapframe *tf)
 	//   To change what the user environment runs, modify 'curenv->env_tf'
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
-	// LAB 4: Your code here.
+  if (curenv->env_pgfault_upcall) {
+    struct UTrapframe *utf = NULL;
+    if (tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp < UXSTACKTOP) {
+      utf = (struct UTrapframe *)((uint32_t *)tf->tf_esp - 1) - 1;
+    } else {
+      utf = (struct UTrapframe *)UXSTACKTOP - 1;
+    }
+    user_mem_assert(curenv, utf, sizeof(*utf), PTE_W);
+    utf->utf_fault_va = fault_va;
+    utf->utf_err = tf->tf_err;
+    utf->utf_regs = tf->tf_regs;
+    utf->utf_eip = tf->tf_eip;
+    utf->utf_eflags = tf->tf_eflags;
+    utf->utf_esp = tf->tf_esp;
+    tf->tf_eip = (uint32_t)curenv->env_pgfault_upcall;
+    tf->tf_esp = (uint32_t)utf;
+    env_run(curenv);
+  }
 
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
@@ -355,3 +379,12 @@ page_fault_handler(struct Trapframe *tf)
 	env_destroy(curenv);
 }
 
+void
+system_call_handler(struct Trapframe *tf) {
+  tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax,
+                                tf->tf_regs.reg_ebx,
+                                tf->tf_regs.reg_ecx,
+                                tf->tf_regs.reg_edx,
+                                tf->tf_regs.reg_esi,
+                                tf->tf_regs.reg_edi);
+}

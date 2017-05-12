@@ -66,19 +66,25 @@ TRAPHANDLER_NOEC(fperr_handler, T_FPERR)
 TRAPHANDLER_NOEC(align_handler, T_ALIGN)
 TRAPHANDLER_NOEC(mchk_handler, T_MCHK)
 TRAPHANDLER_NOEC(simderr_handler, T_SIMDERR)
+TRAPHANDLER_NOEC(syscall_handler, T_SYSCALL)
 
 
 .globl sysenter_handler;
 .type sysenter_handler, @function;
 .align 2;
 sysenter_handler:
-  pushl $0 // arg5, not supported by sysenter
-  pushl %edi
-  pushl %ebx
-  pushl %ecx
-  pushl %edx
-  pushl %eax
-  call syscall
+  pushl $GD_UD|3
+  pushl %ebp
+  pushfl
+  pushl $GD_UT|3
+  pushl %esi
+  pushl $0
+  pushl $T_SYSCALL
+  pushl %ds
+  pushl %es
+  pushal
+  pushl %esp
+  call syscall_tf
   movl %ebp, %ecx
   movl %esi, %edx
   sysexit
@@ -93,9 +99,9 @@ sysenter_handler:
 _alltraps:
   pushl %ds
   pushl %es
+  pushal
   movl $GD_KD, %eax
   movw %ax, %ds
   movw %ax, %es
-  pushal
   pushl %esp
   call trap

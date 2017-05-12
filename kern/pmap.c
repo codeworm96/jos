@@ -229,13 +229,13 @@ mem_init(void)
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
-	// Ie.  the VA range [KERNBASE, 2^32) should map to
-	//      the PA range [0, 2^32 - KERNBASE)
+	// Ie.  the VA range [KERNBASE, IOMEMBASE) should map to
+	//      the PA range [0, IOMEMBASE - KERNBASE)
 	// We might not have 2^32 - KERNBASE bytes of physical memory, but
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-  boot_map_region_large(kern_pgdir, KERNBASE, 0xffffffffu - KERNBASE + 1, 0, PTE_W);
+  boot_map_region(kern_pgdir, KERNBASE, IOMEMBASE - KERNBASE, 0, PTE_W);
 
 
 	// Initialize the SMP-related parts of the memory map
@@ -279,9 +279,10 @@ mem_init(void)
 static void
 mem_init_mp(void)
 {
+  int i;
 	// Create a direct mapping at the top of virtual address space starting
 	// at IOMEMBASE for accessing the LAPIC unit using memory-mapped I/O.
-	boot_map_region(kern_pgdir, IOMEMBASE, -IOMEMBASE, IOMEM_PADDR, PTE_W);
+	boot_map_region(kern_pgdir, IOMEMBASE, 0xffffffff - IOMEMBASE + 1, IOMEM_PADDR, PTE_W);
 
 	// Map per-CPU stacks starting at KSTACKTOP, for up to 'NCPU' CPUs.
 	//
@@ -298,8 +299,19 @@ mem_init_mp(void)
 	//             Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	//
-	// LAB 4: Your code here:
-
+  for (i = 0; i < NCPU; ++i) {
+          uintptr_t kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+          boot_map_region(kern_pgdir, kstacktop_i - KSTKSIZE, KSTKSIZE,
+                          PADDR(percpu_kstacks[i]), PTE_W);
+          char *sa = (char *)(kstacktop_i - KSTKSIZE - KSTKGAP);
+          while ((uintptr_t)sa < kstacktop_i - KSTKSIZE) {
+                  pte_t *pte = pgdir_walk(kern_pgdir, sa, 0);
+                  if (pte) {
+                          *pte = 0;
+                  }
+                  sa = sa + PGSIZE;
+          }
+  }
 }
 
 // --------------------------------------------------------------
@@ -342,7 +354,7 @@ page_init(void)
   // use boot_alloc(0) to get the begining of the free space
   size_t cur_free = PADDR(boot_alloc(0)) / PGSIZE;
 	for (i = 0; i < npages; i++) {
-          if ((i > 0 && i < npages_basemem) || i >= cur_free) {
+          if ((i > 0 && i < npages_basemem && i != PGNUM(MPENTRY_PADDR)) || i >= cur_free) {
                   pages[i].pp_ref = 0;
                   pages[i].pp_link = page_free_list;
                   page_free_list = &pages[i];
