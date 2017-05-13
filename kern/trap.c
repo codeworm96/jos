@@ -72,43 +72,77 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
   extern void divide_handler();
-  SETGATE(idt[T_DIVIDE], 1, GD_KT, divide_handler, 0);
+  SETGATE(idt[T_DIVIDE], 0, GD_KT, divide_handler, 0);
   extern void debug_handler();
-  SETGATE(idt[T_DEBUG], 1, GD_KT, debug_handler, 0);
+  SETGATE(idt[T_DEBUG], 0, GD_KT, debug_handler, 0);
   extern void nmi_handler();
   SETGATE(idt[T_NMI], 0, GD_KT, nmi_handler, 0);
   extern void brkpt_handler();
-  SETGATE(idt[T_BRKPT], 1, GD_KT, brkpt_handler, 3);
+  SETGATE(idt[T_BRKPT], 0, GD_KT, brkpt_handler, 3);
   extern void oflow_handler();
-  SETGATE(idt[T_OFLOW], 1, GD_KT, oflow_handler, 0);
+  SETGATE(idt[T_OFLOW], 0, GD_KT, oflow_handler, 0);
   extern void bound_handler();
-  SETGATE(idt[T_BOUND], 1, GD_KT, bound_handler, 0);
+  SETGATE(idt[T_BOUND], 0, GD_KT, bound_handler, 0);
   extern void illop_handler();
-  SETGATE(idt[T_ILLOP], 1, GD_KT, illop_handler, 0);
+  SETGATE(idt[T_ILLOP], 0, GD_KT, illop_handler, 0);
   extern void device_handler();
-  SETGATE(idt[T_DEVICE], 1, GD_KT, device_handler, 0);
+  SETGATE(idt[T_DEVICE], 0, GD_KT, device_handler, 0);
   extern void dblflt_handler();
-  SETGATE(idt[T_DBLFLT], 1, GD_KT, dblflt_handler, 0);
+  SETGATE(idt[T_DBLFLT], 0, GD_KT, dblflt_handler, 0);
   extern void tss_handler();
-  SETGATE(idt[T_TSS], 1, GD_KT, tss_handler, 0);
+  SETGATE(idt[T_TSS], 0, GD_KT, tss_handler, 0);
   extern void segnp_handler();
-  SETGATE(idt[T_SEGNP], 1, GD_KT, segnp_handler, 0);
+  SETGATE(idt[T_SEGNP], 0, GD_KT, segnp_handler, 0);
   extern void stack_handler();
-  SETGATE(idt[T_STACK], 1, GD_KT, stack_handler, 0);
+  SETGATE(idt[T_STACK], 0, GD_KT, stack_handler, 0);
   extern void gpflt_handler();
-  SETGATE(idt[T_GPFLT], 1, GD_KT, gpflt_handler, 0);
+  SETGATE(idt[T_GPFLT], 0, GD_KT, gpflt_handler, 0);
   extern void pgflt_handler();
-  SETGATE(idt[T_PGFLT], 1, GD_KT, pgflt_handler, 0);
+  SETGATE(idt[T_PGFLT], 0, GD_KT, pgflt_handler, 0);
   extern void fperr_handler();
-  SETGATE(idt[T_FPERR], 1, GD_KT, fperr_handler, 0);
+  SETGATE(idt[T_FPERR], 0, GD_KT, fperr_handler, 0);
   extern void align_handler();
-  SETGATE(idt[T_ALIGN], 1, GD_KT, align_handler, 0);
+  SETGATE(idt[T_ALIGN], 0, GD_KT, align_handler, 0);
   extern void mchk_handler();
-  SETGATE(idt[T_MCHK], 1, GD_KT, mchk_handler, 0);
+  SETGATE(idt[T_MCHK], 0, GD_KT, mchk_handler, 0);
   extern void simderr_handler();
-  SETGATE(idt[T_SIMDERR], 1, GD_KT, simderr_handler, 0);
+  SETGATE(idt[T_SIMDERR], 0, GD_KT, simderr_handler, 0);
   extern void syscall_handler();
-  SETGATE(idt[T_SYSCALL], 1, GD_KT, syscall_handler, 3);
+  SETGATE(idt[T_SYSCALL], 0, GD_KT, syscall_handler, 3);
+
+  //IRQs
+  extern void irq0_handler();
+  SETGATE(idt[IRQ_OFFSET+0], 0, GD_KT, irq0_handler, 0);
+  extern void irq1_handler();
+  SETGATE(idt[IRQ_OFFSET+1], 0, GD_KT, irq1_handler, 0);
+  extern void irq2_handler();
+  SETGATE(idt[IRQ_OFFSET+2], 0, GD_KT, irq2_handler, 0);
+  extern void irq3_handler();
+  SETGATE(idt[IRQ_OFFSET+3], 0, GD_KT, irq3_handler, 0);
+  extern void irq4_handler();
+  SETGATE(idt[IRQ_OFFSET+4], 0, GD_KT, irq4_handler, 0);
+  extern void irq5_handler();
+  SETGATE(idt[IRQ_OFFSET+5], 0, GD_KT, irq5_handler, 0);
+  extern void irq6_handler();
+  SETGATE(idt[IRQ_OFFSET+6], 0, GD_KT, irq6_handler, 0);
+  extern void irq7_handler();
+  SETGATE(idt[IRQ_OFFSET+7], 0, GD_KT, irq7_handler, 0);
+  extern void irq8_handler();
+  SETGATE(idt[IRQ_OFFSET+8], 0, GD_KT, irq8_handler, 0);
+  extern void irq9_handler();
+  SETGATE(idt[IRQ_OFFSET+9], 0, GD_KT, irq9_handler, 0);
+  extern void irq10_handler();
+  SETGATE(idt[IRQ_OFFSET+10], 0, GD_KT, irq10_handler, 0);
+  extern void irq11_handler();
+  SETGATE(idt[IRQ_OFFSET+11], 0, GD_KT, irq11_handler, 0);
+  extern void irq12_handler();
+  SETGATE(idt[IRQ_OFFSET+12], 0, GD_KT, irq12_handler, 0);
+  extern void irq13_handler();
+  SETGATE(idt[IRQ_OFFSET+13], 0, GD_KT, irq13_handler, 0);
+  extern void irq14_handler();
+  SETGATE(idt[IRQ_OFFSET+14], 0, GD_KT, irq14_handler, 0);
+  extern void irq15_handler();
+  SETGATE(idt[IRQ_OFFSET+15], 0, GD_KT, irq15_handler, 0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -241,7 +275,11 @@ trap_dispatch(struct Trapframe *tf)
 
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
-	// LAB 4: Your code here.
+	if (tf->tf_trapno == IRQ_OFFSET + 0) {
+    lapic_eoi();
+    sched_yield();
+		return;
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
