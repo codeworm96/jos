@@ -22,6 +22,15 @@
 int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
+#ifdef CHALLENGE
+  const volatile struct Env *myenv;
+  if (thisenv) {
+    myenv = thisenv;
+  } else {
+    myenv = &envs[ENVX(sys_getenvid())];
+  }
+#endif
+
   if (pg == NULL) {
     pg = (void *)UTOP;
   }
@@ -35,6 +44,15 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
     }
     return r;
   }
+#ifdef CHALLENGE
+  if (from_env_store) {
+    *from_env_store = myenv->env_ipc_from;
+  }
+  if (perm_store) {
+    *perm_store = myenv->env_ipc_perm;
+  }
+	return myenv->env_ipc_value;
+#else
   if (from_env_store) {
     *from_env_store = thisenv->env_ipc_from;
   }
@@ -42,6 +60,7 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
     *perm_store = thisenv->env_ipc_perm;
   }
 	return thisenv->env_ipc_value;
+#endif
 }
 
 // Send 'val' (and 'pg' with 'perm', if 'pg' is nonnull) to 'toenv'.
