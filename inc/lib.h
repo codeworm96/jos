@@ -7,6 +7,8 @@
 #ifndef JOS_INC_LIB_H
 #define JOS_INC_LIB_H 1
 
+//#define CHALLENGE
+
 #include <inc/types.h>
 #include <inc/stdio.h>
 #include <inc/stdarg.h>

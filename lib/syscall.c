@@ -2,37 +2,53 @@
 
 #include <inc/syscall.h>
 #include <inc/lib.h>
+#include <inc/trap.h>
 
 static inline int32_t
 syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
 {
 	int32_t ret;
-	asm volatile("pushl %%ecx\n\t"
-		 "pushl %%edx\n\t"
-	         "pushl %%ebx\n\t"
-		 "pushl %%esp\n\t"
-		 "pushl %%ebp\n\t"
-		 "pushl %%esi\n\t"
-		 "pushl %%edi\n\t"
-				 
-                 //Lab 3: Your code here
-
-                 "popl %%edi\n\t"
-                 "popl %%esi\n\t"
-                 "popl %%ebp\n\t"
-                 "popl %%esp\n\t"
-                 "popl %%ebx\n\t"
-                 "popl %%edx\n\t"
-                 "popl %%ecx\n\t"
-                 
+  if (a5) {
+    asm volatile("int %1"
                  : "=a" (ret)
-                 : "a" (num),
-                   "d" (a1),
+                 : "i" (T_SYSCALL),
+                   "a" (num),
+                   "b" (a1),
                    "c" (a2),
-                   "b" (a3),
-                   "D" (a4)
-                 : "cc", "memory");
+                   "d" (a3),
+                   "S" (a4),
+                   "D" (a5));
+  } else {
+    asm volatile("pushl %%ecx\n\t"
+      "pushl %%edx\n\t"
+            "pushl %%ebx\n\t"
+      "pushl %%esp\n\t"
+      "pushl %%ebp\n\t"
+      "pushl %%esi\n\t"
+      "pushl %%edi\n\t"
 
+                "pushl %%esp\n\t"
+                "popl %%ebp\n\t"
+                "leal after_sysenter_label%=, %%esi\n\t"
+                "sysenter\n\t"
+                "after_sysenter_label%=:\n\t"
+
+                  "popl %%edi\n\t"
+                  "popl %%esi\n\t"
+                  "popl %%ebp\n\t"
+                  "popl %%esp\n\t"
+                  "popl %%ebx\n\t"
+                  "popl %%edx\n\t"
+                  "popl %%ecx\n\t"
+
+                  : "=a" (ret)
+                  : "a" (num),
+                    "d" (a1),
+                    "c" (a2),
+                    "b" (a3),
+                    "D" (a4)
+                  : "cc", "memory");
+  }
 
 	if(check && ret > 0)
 		panic("syscall %d returned %d (> 0)", num, ret);

@@ -8,6 +8,9 @@
 // The remaining two environments are the integer generator at the bottom
 // of main and user/idle.
 
+// pfilter (p:ps) = p : (pfilter . filter (\x -> x `mod` p > 0) $ ps)
+// prime = pfilter [2..]
+
 #include <inc/lib.h>
 
 unsigned
