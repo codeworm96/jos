@@ -22,6 +22,7 @@ enum {
 	SYS_ipc_recv,
 
 	SYS_sbrk,
+  SYS_env_hyoui,
 	NSYSCALLS
 };
 

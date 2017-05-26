@@ -148,3 +148,8 @@ sys_sbrk(uint32_t inc)
 	 return syscall(SYS_sbrk, 0, (uint32_t)inc, (uint32_t)0, 0, 0, 0);
 }
 
+int
+sys_env_hyoui(envid_t envid)
+{
+	return syscall(SYS_env_hyoui, 1, envid, 0, 0, 0, 0);
+}

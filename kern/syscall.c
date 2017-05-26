@@ -143,10 +143,26 @@ sys_env_set_status(envid_t envid, int status)
 static int
 sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 {
-	// LAB 5: Your code here.
 	// Remember to check whether the user has supplied us with a good
 	// address!
-	panic("sys_env_set_trapframe not implemented");
+  user_mem_assert(curenv, tf, sizeof(struct Trapframe), 0);
+
+  struct Env *e = NULL;
+  int res = envid2env(envid, &e, 1);
+  if (res < 0) {
+    return res;
+  }
+  e->env_tf = *tf;
+
+  // set CPL 3
+	e->env_tf.tf_ds = GD_UD | 3;
+	e->env_tf.tf_es = GD_UD | 3;
+	e->env_tf.tf_ss = GD_UD | 3;
+	e->env_tf.tf_cs = GD_UT | 3;
+
+	// Enable interrupts while in user mode.
+  e->env_tf.tf_eflags |= FL_IF; 
+  return 0;
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -428,6 +444,31 @@ sys_sbrk(uint32_t inc)
         return curenv->env_break;
 }
 
+static int
+sys_env_hyoui(envid_t envid)
+{
+	int r;
+	struct Env *e;
+  struct Trapframe tmp_tf;
+  pte_t * tmp_pgdir;
+
+	if ((r = envid2env(envid, &e, 1)) < 0)
+		return r;
+
+  tmp_tf = e->env_tf;
+  e->env_tf = curenv->env_tf;
+  curenv->env_tf = tmp_tf;
+
+  tmp_pgdir = e->env_pgdir;
+  e->env_pgdir = curenv->env_pgdir;
+  curenv->env_pgdir = tmp_pgdir;
+
+	env_destroy(e);
+  lcr3(PADDR(curenv->env_pgdir));
+  env_pop_tf(&curenv->env_tf);
+	return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -481,6 +522,12 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
     break;
   case SYS_ipc_recv:
     return sys_ipc_recv((void *)a1); /* no return */
+    break;
+  case SYS_env_set_trapframe:
+    return sys_env_set_trapframe(a1, (struct Trapframe *)a2);
+    break;
+  case SYS_env_hyoui:
+    return sys_env_hyoui(a1); /* no return when success */
     break;
   }
   return -E_INVAL;

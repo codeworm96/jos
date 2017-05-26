@@ -89,6 +89,7 @@ envid_t	sfork(void);	// Challenge!
 int     sys_map_kernel_page(void* kpage, void* va);
 
 int sys_sbrk(uint32_t inc);
+int	sys_env_hyoui(envid_t);
 
 // fd.c
 int	close(int fd);
@@ -114,6 +115,8 @@ int	pageref(void *addr);
 // spawn.c
 envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
+envid_t	exec(const char *program, const char **argv);
+envid_t	execl(const char *program, const char *arg0, ...);
 
 
 
