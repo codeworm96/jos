@@ -48,8 +48,17 @@ bc_pgfault(struct UTrapframe *utf)
 	// page not-dirty (since reading the data from disk will mark
 	// the page dirty).
 	//
-	// LAB 5: Your code here
-	panic("bc_pgfault not implemented");
+  void *pgaddr = ROUNDDOWN(addr, PGSIZE);
+  r = sys_page_alloc(0, pgaddr, PTE_W|PTE_U|PTE_P);
+  if (r < 0)
+    panic("sys_page_alloc: %e", r);
+  r = ide_read(blockno * BLKSECTS, pgaddr, BLKSECTS);
+  if (r < 0)
+    panic("ide_read failed");
+  r = sys_page_map(0, pgaddr, 0, pgaddr, PTE_W|PTE_U|PTE_P);
+  if (r < 0)
+    panic("sys_page_map: %e", r);
+
 
 	// Check that the block we read was allocated. (exercise for
 	// the reader: why do we do this *after* reading the block
@@ -69,12 +78,20 @@ void
 flush_block(void *addr)
 {
 	uint32_t blockno = ((uint32_t)addr - DISKMAP) / BLKSIZE;
+  int r;
 
 	if (addr < (void*)DISKMAP || addr >= (void*)(DISKMAP + DISKSIZE))
 		panic("flush_block of bad va %08x", addr);
 
-	// LAB 5: Your code here.
-	panic("flush_block not implemented");
+  if (va_is_mapped(addr) && va_is_dirty(addr)) {
+    void *pgaddr = ROUNDDOWN(addr, PGSIZE);
+    r = ide_write(blockno * BLKSECTS, pgaddr, BLKSECTS);
+    if (r < 0)
+      panic("ide_write failed");
+    r = sys_page_map(0, pgaddr, 0, pgaddr, PTE_W|PTE_U|PTE_P);
+    if (r < 0)
+      panic("sys_page_map: %e", r);
+  }
 }
 
 // Test that the block cache works, by smashing the superblock and

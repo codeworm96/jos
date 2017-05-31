@@ -22,9 +22,45 @@
 int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
-	// LAB 4: Your code here.
-	panic("ipc_recv not implemented");
-	return 0;
+#ifdef CHALLENGE
+  const volatile struct Env *myenv;
+  if (thisenv) {
+    myenv = thisenv;
+  } else {
+    myenv = &envs[ENVX(sys_getenvid())];
+  }
+#endif
+
+  if (pg == NULL) {
+    pg = (void *)UTOP;
+  }
+  int r = sys_ipc_recv(pg);
+  if (r < 0) {
+    if (from_env_store) {
+      *from_env_store = 0;
+    }
+    if (perm_store) {
+      *perm_store = 0;
+    }
+    return r;
+  }
+#ifdef CHALLENGE
+  if (from_env_store) {
+    *from_env_store = myenv->env_ipc_from;
+  }
+  if (perm_store) {
+    *perm_store = myenv->env_ipc_perm;
+  }
+	return myenv->env_ipc_value;
+#else
+  if (from_env_store) {
+    *from_env_store = thisenv->env_ipc_from;
+  }
+  if (perm_store) {
+    *perm_store = thisenv->env_ipc_perm;
+  }
+	return thisenv->env_ipc_value;
+#endif
 }
 
 // Send 'val' (and 'pg' with 'perm', if 'pg' is nonnull) to 'toenv'.
@@ -38,8 +74,16 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 void
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
-	// LAB 4: Your code here.
-	panic("ipc_send not implemented");
+  int r;
+  if (pg == NULL) {
+    pg = (void *)UTOP;
+  }
+  while((r = sys_ipc_try_send(to_env, val, pg, perm)) == -E_IPC_NOT_RECV) {
+    sys_yield();
+  }
+  if (r < 0) {
+    panic("sys_ipc_try_send: %e", r);
+  }
 }
 
 // Find the first environment of the given type.  We'll use this to

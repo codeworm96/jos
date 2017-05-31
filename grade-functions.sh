@@ -51,6 +51,11 @@ run () {
 		echo $qemucommand 1>&2
 	fi
 
+	qemucommand="$qemu -nographic $qemuopts -serial file:jos.out -monitor null -no-reboot $qemuextra"
+	if $verbose; then
+		echo $qemucommand 1>&2
+	fi
+
 	t0=`date +%s.%N 2>/dev/null`
 	(
 		ulimit -t $timeout
@@ -143,7 +148,7 @@ fail () {
 # Usage: runtest <tagname> <defs> <check fn> <check args...>
 runtest () {
 	perl -e "print '$1: '"
-	rm -f obj/kern/init.o obj/kern/kernel obj/kern/kernel.img 
+	rm -f obj/kern/init.o obj/kern/kernel obj/kern/kernel.img
 	[ "$preservefs" = y ] || rm -f obj/fs/fs.img
 	if $verbose
 	then
@@ -153,7 +158,7 @@ runtest () {
 	if [ $? -ne 0 ]
 	then
 		rm -f obj/kern/init.o
-		echo $make $2 failed 
+		echo $make $2 failed
 		exit 1
 	fi
 	# We just built a weird init.o that runs a specific test.  As

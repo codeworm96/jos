@@ -1,0 +1,36 @@
+Question 1. How long approximately did it take you to do this lab?
+
+About 7 hours.
+
+Question 2. We redesigned the file system this year with the goal
+of making it more comprehensible in a week-long lab. Do you feel
+like you gained an understanding of how to build a file system?
+Feel free to suggest things we could improve.
+
+Yes. I am satisfied with the lab.
+
+Challenge. Implement Unix-style exec.
+
+I implemented the exec in user space. I added the exec() function in
+spawn.c. There is also a wrapper function execl() for exec(), like
+spawnl().
+
+The exec() will first create a shadow environment. (In fact, we only
+need a new virtual address space. However, in JOS each address space
+is bound to a environment. I just do not want to break that rule and
+implement a new set of syscalls...)
+
+Then it initializes that address space and trapframe from the ELF file
+just like the spawn().
+
+Finally, we need to commit the shadow environment. Here we need special
+help from the kernel. I added a new syscall sys_env_hyoui()(possession in
+Japanese, being controlled by a spirit).
+
+In sys_env_hyoui(), the curenv swaps its trapframe and pgdir with another
+environment. And then the other environment is destroyed and curenv will
+continue to run with the other environment's trapframe and pgdir.
+
+After the syscall, we are running a new process within the old environment!
+
+You can test exec() with user/hyoui.

@@ -86,6 +86,7 @@ KERN_BINFILES +=	user/idle \
 # Binary files for LAB5
 KERN_BINFILES +=	user/testfile \
 			user/writemotd \
+			user/hyoui \
 			user/icode \
 			fs/fs
 

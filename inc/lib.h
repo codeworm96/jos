@@ -7,6 +7,8 @@
 #ifndef JOS_INC_LIB_H
 #define JOS_INC_LIB_H 1
 
+//#define CHALLENGE
+
 #include <inc/types.h>
 #include <inc/stdio.h>
 #include <inc/stdarg.h>
@@ -90,6 +92,7 @@ envid_t	sfork(void);	// Challenge!
 int     sys_map_kernel_page(void* kpage, void* va);
 
 int sys_sbrk(uint32_t inc);
+int	sys_env_hyoui(envid_t);
 
 // fd.c
 int	close(int fd);
@@ -133,6 +136,8 @@ int     nsipc_socket(int domain, int type, int protocol);
 // spawn.c
 envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
+envid_t	exec(const char *program, const char **argv);
+envid_t	execl(const char *program, const char *arg0, ...);
 
 
 
