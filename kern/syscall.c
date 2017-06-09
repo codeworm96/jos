@@ -13,6 +13,9 @@
 #include <kern/sched.h>
 #include <kern/time.h>
 #include <kern/spinlock.h>
+#include <kern/e1000.h>
+
+extern uint8_t e1000_mac[6];
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -474,10 +477,33 @@ sys_env_hyoui(envid_t envid)
 static int
 sys_time_msec(void)
 {
-	// LAB 6: Your code here.
-	panic("sys_time_msec not implemented");
+  return time_msec();
 }
 
+// Transmit package
+static int
+sys_net_try_transmit(const char * buf, uint32_t len)
+{
+  user_mem_assert(curenv, buf, len, 0);
+  return e1000_transmit(buf, len);
+}
+
+// Receive package
+static int
+sys_net_try_receive(char * buf)
+{
+  user_mem_assert(curenv, buf, E1000_RCV_PKT_LEN, PTE_W);
+  return e1000_receive(buf);
+}
+
+// Get MAC
+static int
+sys_net_mac(char * buf)
+{
+  user_mem_assert(curenv, buf, 6, PTE_W);
+  memmove(buf, e1000_mac, 6);
+  return 0;
+}
 
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
@@ -538,6 +564,18 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
     break;
   case SYS_env_hyoui:
     return sys_env_hyoui(a1); /* no return when success */
+    break;
+  case SYS_time_msec:
+    return sys_time_msec();
+    break;
+  case SYS_net_try_transmit:
+    return sys_net_try_transmit((void *)a1, a2);
+    break;
+  case SYS_net_try_receive:
+    return sys_net_try_receive((void *)a1);
+    break;
+  case SYS_net_mac:
+    return sys_net_mac((void *)a1);
     break;
   }
   return -E_INVAL;

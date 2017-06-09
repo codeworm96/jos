@@ -1,0 +1,47 @@
+Question 1. How did you structure your transmit implementation?
+In particular, what do you do if the transmit ring is full?
+
+I modified pmap.c to reserve some special DMA pages marked as cache
+disabled and write through and are physically contiguous in the
+memory space. I allocated fixed size transmit descriptor and buffer
+array there. In e1000_transmit(), the next descriptor and the
+corresponding buffer is filled according to the Intel's manual.
+Finally, it updates TDT to inform the hardware.
+
+If the transmit ring is full, it just returns -E_TX_QUEUE_FULL to
+inform the user. User can try again if he/she wants to.
+
+Question 2. How did you structure your receive implementation?
+In particular, what do you do if the receive queue is empty
+and a user environment requests the next incoming packet?
+
+The structure is similar to that of the transmission.
+It the receive queue is empty, it just returns -E_RCV_QUEUE_EMPTY
+to inform the user. User can try again if he/she wants to.
+
+Question 3. What does the web page served by JOS's web server say?
+
+This file came from JOS.
+Cheesy web page!
+
+Question 4. How long approximately did it take you to do this lab?
+
+16 hours.
+
+Challenge! load MAC address out of the EEPROM.
+
+I write a function uint16_t e1000_read_eeprom(uint8_t addr) to
+read a word in the EEPROM using the EEPROM Read Register.
+In e1000_read_eeprom(), first set EERD.ADDR and EERD.START.
+Then wait until EERD.DONE is set. Finally, get the result in
+EERD.DATA.
+
+In e1000_attach(), when setting the MAC, use e1000_read_eeprom() to
+read the MAC address in the EEPROM and then set it.
+
+I also add a syscall sys_net_mac(). User can use it to get the MAC
+address. I modified low_level_init() in jif.c to use this syscall
+to get the MAC address for lwIP.
+
+After changing MAC address, the driver can load the correct MAC
+address out of the EEPROM and the network function works fine.

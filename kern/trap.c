@@ -278,6 +278,7 @@ trap_dispatch(struct Trapframe *tf)
 	// interrupt using lapic_eoi() before calling the scheduler!
 	if (tf->tf_trapno == IRQ_OFFSET + 0) {
     lapic_eoi();
+    time_tick();
     sched_yield();
 		return;
 	}

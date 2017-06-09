@@ -159,3 +159,21 @@ sys_env_hyoui(envid_t envid)
 {
 	return syscall(SYS_env_hyoui, 1, envid, 0, 0, 0, 0);
 }
+
+int
+sys_net_try_transmit(const char * buf, uint32_t len)
+{
+  return syscall(SYS_net_try_transmit, 0, (uint32_t)buf, len, 0, 0, 0);
+}
+
+int
+sys_net_try_receive(char * buf)
+{
+  return syscall(SYS_net_try_receive, 0, (uint32_t)buf, 0, 0, 0, 0);
+}
+
+int
+sys_net_mac(char * buf)
+{
+  return syscall(SYS_net_mac, 0, (uint32_t)buf, 0, 0, 0, 0);
+}

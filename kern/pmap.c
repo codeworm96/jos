@@ -12,6 +12,9 @@
 #include <kern/env.h>
 #include <kern/cpu.h>
 
+// page reserved as DMA
+#define DMA_PAGES 1024
+
 // These variables are set by i386_detect_memory()
 size_t npages;			// Amount of physical memory (in pages)
 static size_t npages_basemem;	// Amount of base memory (in pages)
@@ -73,7 +76,7 @@ static void check_page(void);
 static int check_continuous(struct Page *pp, int num_page);
 static void check_n_pages(void);
 static void check_page_installed_pgdir(void);
-static void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm);
+void boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm);
 static void boot_map_region_large(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm);
 
 // This simple physical memory allocator is used only while JOS is setting
@@ -229,12 +232,15 @@ mem_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, IOMEMBASE) should map to
-	//      the PA range [0, IOMEMBASE - KERNBASE)
+	//      the PA range [0, IOMEMBASE - DMA_PAGES * PGSIZE - KERNBASE)
 	// We might not have 2^32 - KERNBASE bytes of physical memory, but
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-  boot_map_region(kern_pgdir, KERNBASE, IOMEMBASE - KERNBASE, 0, PTE_W);
+  boot_map_region(kern_pgdir, KERNBASE, IOMEMBASE - DMA_PAGES * PGSIZE - KERNBASE, 0, PTE_W);
+
+  // map the dma pages
+  boot_map_region(kern_pgdir, IOMEMBASE - DMA_PAGES * PGSIZE, DMA_PAGES * PGSIZE, page2pa(pages + (npages - DMA_PAGES)), PTE_W|PTE_PCD|PTE_PWT);
 
 
 	// Initialize the SMP-related parts of the memory map
@@ -352,7 +358,7 @@ page_init(void)
 	size_t i;
   // use boot_alloc(0) to get the begining of the free space
   size_t cur_free = PADDR(boot_alloc(0)) / PGSIZE;
-	for (i = 0; i < npages; i++) {
+	for (i = 0; i < npages - DMA_PAGES; i++) {
           if ((i > 0 && i < npages_basemem && i != PGNUM(MPENTRY_PADDR)) || i >= cur_free) {
                   pages[i].pp_ref = 0;
                   pages[i].pp_link = page_free_list;
@@ -708,7 +714,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 // mapped pages.
 //
 // Hint: the TA solution uses pgdir_walk
-static void
+void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
         assert(va % PGSIZE == 0);
